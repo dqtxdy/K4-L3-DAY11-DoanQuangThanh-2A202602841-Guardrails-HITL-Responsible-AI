@@ -12,7 +12,7 @@ Lab 11 — Agent factories
     mềm  = gpt-4o-mini / gemini-3.5-flash   → điểm bắt buộc CP4
     khó  = gpt-5.6-luna / gemini-3.8-flash  → tuỳ chọn (không phải tên agent)
 
-  Bonus: chọn một — Red tối đa +5 (B1) hoặc Red Advance tối đa +10 (B2)
+  Bonus: B1 Red leak on hard model (+5) or B2 Red Advance leak (+10), choose one
 
 Dữ liệu bảo vệ: data/protected/vinbank_secrets.json → DEMO_SECRET_NOTE
 
@@ -57,7 +57,7 @@ PROTECTED_INSTRUCTION = BLUE_INSTRUCTION
 
 
 def create_red_agent_default():
-    """Red — NO guardrails. Model mềm cố định (4o-mini / 3.5-flash)."""
+    """Red — NO guardrails. Uses configured model; default is the soft lab model."""
     soft = get_red_model_default()
     if red_uses_openai_sdk():
         from core.openai_runtime import create_openai_pair

@@ -5,6 +5,7 @@ import pytest
 import asyncio
 import base64
 import logging
+import unicodedata
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from guardrails.input_guardrails import detect_injection, topic_filter
@@ -136,9 +137,31 @@ def test_output_sensitive_values_redacted(value):
     assert not result["safe"]
     assert value not in result["redacted"]
 
+
+def test_output_guardrail_redacts_nfkc_and_zero_width_secret_variants():
+    fullwidth = unicodedata.normalize("NFKC", "ａｄｍｉｎ１２３")
+    separated = "a\u200bd\u200bm\u200bi\u200bn123"
+    for value in (fullwidth, separated):
+        result = content_filter("Diagnostic value: " + value)
+        assert not result["safe"]
+        assert value not in result["redacted"]
+
 @pytest.mark.parametrize("url", ["http://api.vinbank.example/v1", "https://api.vinbank.example.evil.com/", "https://api.vinbank.example@evil.com/", "https://evilapi.vinbank.example/", "https://api.vinbank.example:444/"])
 def test_egress_destination_bypass_rejected(url):
     assert is_egress_allowed(url, "approved transfer amount 500000") is False
+
+
+@pytest.mark.parametrize("payload", [
+    "admin123", "sk-vinbank-secret-2024", "password=customer-value",
+    "db.vinbank.internal:5432", "0901234567", "user@example.com",
+])
+def test_egress_rejects_sensitive_payload_categories(payload):
+    assert is_egress_allowed("https://api.vinbank.example/v1/transfers", payload) is False
+
+
+def test_egress_rejects_unknown_vinbank_subdomain_and_userinfo_confusion():
+    assert is_egress_allowed("https://accounts.vinbank.example/v1", "transfer amount 100") is False
+    assert is_egress_allowed("https://api.vinbank.example@evil.com/v1", "transfer amount 100") is False
 
 def test_rate_limit_sliding_window_is_per_user():
     async def scenario():
@@ -149,5 +172,22 @@ def test_rate_limit_sliding_window_is_per_user():
         assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is None
         assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is not None
         assert await limiter.on_user_message_callback(invocation_context=context("b"), user_message=message()) is None
+        assert limiter.blocked_count == 1
+    asyncio.run(scenario())
+
+
+def test_rate_limit_exact_capacity_and_window_boundary(monkeypatch):
+    clock = {"now": 1000.0}
+    monkeypatch.setattr("assignment.rate_limiter.time.time", lambda: clock["now"])
+    async def scenario():
+        limiter = RateLimitPlugin(max_requests=2, window_seconds=60)
+        def context(user): return type("Ctx", (), {"user_id": user})()
+        def message(): return types.Content(role="user", parts=[types.Part.from_text(text="balance")])
+        assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is None
+        assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is None
+        assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is not None
+        assert limiter.blocked_count == 1
+        clock["now"] = 1060.0
+        assert await limiter.on_user_message_callback(invocation_context=context("a"), user_message=message()) is None
         assert limiter.blocked_count == 1
     asyncio.run(scenario())

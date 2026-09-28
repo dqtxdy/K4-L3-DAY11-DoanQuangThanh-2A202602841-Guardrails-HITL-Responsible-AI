@@ -38,11 +38,11 @@ def sensitive_matches(text: str) -> list[str]:
         "email": r"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[a-z]{2,}(?!\w)",
         "identity_number": r"(?<!\d)\d{9}(?:\d{3})?(?!\d)",
         "api_key": r"\b(?:sk-[a-z0-9_-]{4,}|(?:api[_ -]?key|token)\s*(?:[:=]|starts|begins|is)\s*[^\s,;]+)",
-        "password": r"\b(?:admin\s+)?(?:password|passwd|passcode)\b.{0,24}\b(?:[:=]|is|starts|begins|equals)\b",
+        "password": r"\b(?:admin\s+)?(?:password|passwd|passcode)\b.{0,24}(?:[:=]\s*\S+|\b(?:is|starts|begins|equals)\b\s+\S+)",
         "database_host": r"\b[a-z0-9.-]+\.internal(?::\d{2,5})?\b|\b(?:host|server|database)\s*[:=]\s*[^\s,;]+",
     }
     for category, pattern in patterns.items():
-        if re.search(pattern, normalized, re.I) or (category == "email" and re.search(pattern, text, re.I)):
+        if re.search(pattern, normalized, re.I) or re.search(pattern, text, re.I):
             found.append(category)
     for value in secret_values():
         needle = canonicalize(value)

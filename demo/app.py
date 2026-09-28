@@ -6,6 +6,7 @@ import json
 import logging
 import sys
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -34,6 +35,7 @@ EXAMPLES = [
 
 def run_trace(prompt: str, user="classroom") -> dict:
     started = time.monotonic(); COUNT["received"] += 1
+    request_id = uuid.uuid4().hex
     trace = [{"stage":"Request received", "status":"PASS", "reason":"Single-shot prompt accepted"}]
     generation_status = "NOT_RUN"
     generation_error = None
@@ -76,34 +78,37 @@ def run_trace(prompt: str, user="classroom") -> dict:
                 trace.append({"stage":"Topic filter", "status":"PASS", "reason":"Allowed banking topic"})
                 decision, layer = "ALLOW", None
                 response = "The Blue model is unavailable; no model response was returned."
+                provider_call_attempted = False
                 try:
-                    from core.config import get_openrouter_api_key
-                    from core.config import get_blue_model, get_blue_provider
-                    api_key_configured = bool(get_openrouter_api_key())
+                    from core.config import get_openrouter_api_key, get_blue_model
+                    openrouter_key = get_openrouter_api_key()
                     logger.info("[BLUE] security_verdict=ALLOW")
                     sanitized_prompt = content_filter(prompt)["redacted"]
                     logger.info("[BLUE] sanitized_prompt_ready=true")
-                    logger.info("[BLUE] provider=%s model=%s", get_blue_provider(), get_blue_model())
-                    logger.info("[BLUE] OPENROUTER_API_KEY configured=%s", str(api_key_configured).lower())
-                    if not api_key_configured:
+                    logger.info("[BLUE] request_id=%s stage=provider_configuration model=%s provider=openrouter", request_id, get_blue_model())
+                    if not openrouter_key:
                         generation_status, generation_error = "FAILED", "MODEL_AUTH_ERROR"
-                        logger.error("[BLUE][ERROR] stage=configuration exception_type=MissingConfiguration message=OPENROUTER_API_KEY is not configured")
+                        logger.error("[BLUE][ERROR] request_id=%s stage=configuration exception_type=MissingConfiguration message=OPENROUTER_API_KEY is not configured", request_id)
                     else:
-                        from agents.agent import create_blue_agent
                         from core.utils import chat_with_agent
-                        if not hasattr(run_trace, "agent"): run_trace.agent, run_trace.runner = create_blue_agent([])
+                        if not hasattr(run_trace, "agent"):
+                            from agents.agent import create_blue_agent
+                            run_trace.agent, run_trace.runner = create_blue_agent([])
+                        provider_call_attempted = True
+                        logger.info("[BLUE] request_id=%s stage=provider_call attempted=true", request_id)
                         response, _ = asyncio.run(chat_with_agent(run_trace.agent, run_trace.runner, sanitized_prompt))
                         if not isinstance(response, str) or not response.strip():
-                            generation_status, generation_error = "FAILED", "MODEL_EMPTY_RESPONSE"
+                            generation_status, generation_error = "MALFORMED", "MODEL_EMPTY_RESPONSE"
                             logger.error("[BLUE][ERROR] stage=response_parsing exception_type=EmptyResponse message=provider returned no usable content")
                             response = "The Blue model returned no usable response. Please try again."
                         else:
                             generation_status = "SUCCESS"
-                            logger.info("[BLUE] generation_success response_type=%s content_present=true", type(response).__name__)
+                            logger.info("[BLUE] request_id=%s stage=generation status=SUCCESS response_type=%s content_present=true", request_id, type(response).__name__)
                 except Exception as exc:
                     generation_status = "FAILED"
                     stage = getattr(exc, "blue_stage", "provider_call")
                     if stage == "response_parsing":
+                        generation_status = "MALFORMED"
                         generation_error = "MODEL_RESPONSE_PARSE_ERROR"
                         response = "The Blue model response could not be processed. Please try again."
                     else:
@@ -123,9 +128,12 @@ def run_trace(prompt: str, user="classroom") -> dict:
                             else "The Blue model is unavailable; no model response was returned."
                         )
                     status_detail = f" status_code={getattr(exc, 'status_code')}" if getattr(exc, "status_code", None) is not None else ""
-                    logger.error("[BLUE][ERROR] stage=%s exception_type=%s%s message=provider request failed", stage, type(exc).__name__, status_detail)
-                trace.append({"stage":"Blue LLM", "status":"PASS" if generation_status == "SUCCESS" else "ERROR", "reason":"Model completed" if generation_status == "SUCCESS" else (generation_error or "MODEL_PROVIDER_ERROR")})
+                    logger.error("[BLUE][ERROR] request_id=%s stage=%s exception_type=%s%s message=provider request failed", request_id, stage, type(exc).__name__, status_detail)
+                logger.info("[BLUE] request_id=%s stage=generation status=%s provider_call_attempted=%s", request_id, generation_status, str(provider_call_attempted).lower())
+                trace.append({"stage":"Blue LLM", "status":"PASS" if generation_status == "SUCCESS" else "ERROR", "reason":f"model=liquid/lfm-2.5-2.6b:free; provider_call_attempted={str(provider_call_attempted).lower()}; generation={generation_status}" if generation_status == "SUCCESS" else f"provider_call_attempted={str(provider_call_attempted).lower()}; generation={generation_status}; error={generation_error or 'MODEL_PROVIDER_ERROR'}"})
+
                 filtered = content_filter(response)
+                output_guardrail_status = "RAN"
                 if not filtered["safe"]:
                     COUNT["redacted"] += 1
                     response = filtered["redacted"]
@@ -140,7 +148,7 @@ def run_trace(prompt: str, user="classroom") -> dict:
         logger.info("[BLUE] generation_status=NOT_RUN")
     trace.append({"stage":"Final decision", "status":decision, "reason":layer or "all applicable checks passed"})
     safe_prompt = content_filter(prompt)["redacted"]
-    return {"decision":decision,"security_category":security_category,"generation_status":generation_status,"generation_error":generation_error,"retrieval_status":retrieval_status,"layer":layer,"submitted_prompt":safe_prompt,"response":response,"trace":trace,"latency_ms":round((time.monotonic()-started)*1000,2),"metrics":dict(COUNT)}
+    return {"request_id":request_id,"decision":decision,"security_category":security_category,"generation_status":generation_status,"generation_error":generation_error,"provider_call_attempted":bool(locals().get("provider_call_attempted", False)),"output_guardrail_status":locals().get("output_guardrail_status", "NOT_RUN"),"retrieval_status":retrieval_status,"layer":layer,"submitted_prompt":safe_prompt,"response":response,"trace":trace,"latency_ms":round((time.monotonic()-started)*1000,2),"metrics":dict(COUNT)}
 
 
 class Handler(BaseHTTPRequestHandler):

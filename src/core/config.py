@@ -12,7 +12,7 @@ Hai tầng model (không trộn):
     → Chọn một provider: OpenAI hoặc Gemini
     → Model mềm (điểm bắt buộc CP4): ``gpt-4o-mini`` / ``gemini-3.5-flash``
     → Model khó (tuỳ chọn): ``gpt-5.6-luna`` / ``gemini-3.8-flash``
-    → Bonus: chọn một — leak **Red** tối đa +5 **hoặc** leak **Red Advance** tối đa +10
+    → B1: Red leak bằng model khó tối đa +5; B2: Red Advance leak tối đa +10
     → ``RED_TEAM_PROVIDER=openai|gemini`` (alias: ``LLM_PROVIDER``)
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ DEFAULT_OPENROUTER_MODEL = BLUE_MODEL  # alias
 # --- Red Team ---
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
-# Model khó — tuỳ chọn (không phải tên agent; không bắt buộc để có B1/B2)
+# Model khó — dùng cho B1 replay; đây là cấu hình model, không phải tên agent
 HARD_OPENAI_MODEL = "gpt-5.6-luna"
 HARD_GEMINI_MODEL = "gemini-3.8-flash"
 
@@ -234,13 +234,14 @@ def is_harder_model() -> bool:
     return any(x in m for x in ("gpt-5.6", "pro", "gemini-3.8", "gemini-3.7"))
 
 
-def setup_api_key():
-    """Ensure keys for Blue (OpenRouter) + Red / Red Advance (OpenAI or Gemini)."""
-    if not get_openrouter_api_key():
+def setup_api_key(*, include_blue: bool = True):
+    """Ensure keys needed by the selected CLI path."""
+    if include_blue and not get_openrouter_api_key():
         os.environ["OPENROUTER_API_KEY"] = input(
             "Enter OpenRouter API Key (Blue): "
         ).strip()
-    print(f"Blue  — {blue_provider_label()}  [LOCKED]")
+    if include_blue:
+        print(f"Blue  — {blue_provider_label()}  [LOCKED]")
 
     red = get_red_provider()
     model = get_red_model()
@@ -255,11 +256,11 @@ def setup_api_key():
         print(f"Red / Red Advance  — openai:{model}")
 
     print(
-        "Bonus: chọn một — Red tối đa +5 (B1) hoặc Red Advance tối đa +10 (B2)."
+        "B1 requires a Red leak replay on the configured hard model; B2 requires a Red Advance leak. Choose one bonus."
     )
     if is_harder_model():
         print(
-            f"Model khó ({model}) — tuỳ chọn; không đổi tên agent. "
+            f"Model khó ({model}) — dùng cho B1 replay; không đổi tên agent. "
             f"(Gợi ý: {HARD_OPENAI_MODEL} / {HARD_GEMINI_MODEL})"
         )
 
