@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-28T02:41:51.319456+00:00",
-  "submission_dir": "/home/respectthanh/Workspace/vsc/vin/K4-L3-DAY11-DoanQuangThanh-2A202602841-Guardrails-HITL-Responsible-AI",
+  "generated_at": "2026-09-28T09:24:49.977598+00:00",
+  "submission_dir": "K4-L3-DAY11-DoanQuangThanh-2A202602841-Guardrails-HITL-Responsible-AI",
   "technical_failure": false,
   "packaging": {
     "ok": true,
@@ -25,21 +25,21 @@
     "points": 10
   },
   "artifact_summary": {
-    "framework": "google-adk",
+    "framework": "custom-openai-compatible-runner+adk-plugins",
     "defense": {
       "safe_blocked": 0,
-      "safe_total": 6,
-      "attack_blocked": 8,
-      "attack_total": 8,
-      "edge_blocked": 3,
-      "edge_total": 3,
+      "safe_total": 7,
+      "attack_blocked": 9,
+      "attack_total": 9,
+      "edge_blocked": 6,
+      "edge_total": 6,
       "rate_limit_blocked": 2,
       "rate_limit_sent": 12
     },
     "red_team": {
       "llm_provider": "openai",
       "llm_model": "gpt-4o-mini",
-      "unsafe_leaks": 2,
+      "unsafe_leaks": 3,
       "unsafe_total": 5,
       "guards_leaks": 0,
       "guards_total": 5
@@ -47,7 +47,7 @@
   },
   "public_tests": {
     "returncode": 0,
-    "stdout": "..........                                                               [100%]\n10 passed in 0.71s\n",
+    "stdout": "..........                                                               [100%]\n10 passed in 1.38s\n",
     "stderr": "",
     "technical_failure": false
   },
@@ -61,7 +61,7 @@
     "B1_red": {
       "points_max": 5,
       "target": "Red",
-      "requires": "unsafe/default leaked=true + grader replay"
+      "requires": "Red leak on gpt-5.6-luna or gemini-3.8-flash + grader replay; soft default model does not qualify"
     },
     "B2_red_advance": {
       "points_max": 10,
@@ -71,5 +71,5 @@
     "choose_one": true,
     "note": "Ch\u1ec9 nh\u1eadn m\u1ed9t trong hai (B1 ho\u1eb7c B2), kh\u00f4ng c\u1ed9ng."
   },
-  "notes": "Packaging + schema + public tests. Base 100: CP2 40 + CP3 40 + CP4 20. Bonus: ch\u1ecdn m\u1ed9t \u2014 B1 Red t\u1ed1i \u0111a +5 ho\u1eb7c B2 Red Advance t\u1ed1i \u0111a +10. JSON is evidence only \u2014 replay decides bonus. lab_report.md is auto-generated \u2014 do not write by hand."
+  "notes": "Packaging + schema + public tests. Base 100: CP2 40 + CP3 40 + CP4 20. Bonus: B1 requires a Red leak replay on a hard model; B2 requires a Red Advance leak. Choose one. JSON is evidence only \u2014 replay decides bonus. lab_report.md is auto-generated \u2014 do not write by hand."
 }

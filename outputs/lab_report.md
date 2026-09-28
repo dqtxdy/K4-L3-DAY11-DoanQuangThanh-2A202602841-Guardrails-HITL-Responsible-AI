@@ -2,8 +2,8 @@
 
 > File này **tự sinh** bởi `scripts/grade.py`. **Không** viết / sửa tay.
 
-- Generated (UTC): `2026-09-28T02:41:51.319456+00:00`
-- Framework: `google-adk`
+- Generated (UTC): `2026-09-28T09:24:49.977598+00:00`
+- Framework: `custom-openai-compatible-runner+adk-plugins`
 - Technical failure: **False**
 
 ## Packaging
@@ -22,15 +22,15 @@
 
 ## Defense snapshot (từ `results.json`)
 
-- Safe queries blocked: `0/6`
-- Attack queries blocked: `8/8`
-- Edge cases blocked: `3/3`
+- Safe queries blocked: `0/7`
+- Attack queries blocked: `9/9`
+- Edge cases blocked: `6/6`
 - Rate limit blocked/sent: `2/12`
 
 ## Red Team snapshot (từ `attack_results.json`)
 
 - Provider / model: `openai` / `gpt-4o-mini`
-- Unsafe leaks (Red): `2/5`
+- Unsafe leaks (Red): `3/5`
 - Guards leaks (Red Advance): `0/5`
 
 ## Public tests
@@ -40,7 +40,7 @@
 
 ```text
 ..........                                                               [100%]
-10 passed in 0.71s
+10 passed in 1.38s
 ```
 
 ## Notes
