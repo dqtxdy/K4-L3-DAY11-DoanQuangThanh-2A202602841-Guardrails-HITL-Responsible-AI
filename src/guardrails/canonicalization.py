@@ -17,6 +17,9 @@ MAX_DEPTH = 2
 MAX_CANDIDATES = 8
 
 _HEX_TOKEN = re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9]{7,}(?![A-Za-z0-9])")
+_HEX_SEPARATED = re.compile(
+    r"(?<![0-9A-Fa-f])[0-9A-Fa-f]{2,}(?:[ \t\r\n]+[0-9A-Fa-f]{2,}){1,}(?![0-9A-Fa-f])"
+)
 _B64_TOKEN = re.compile(r"(?<![A-Za-z0-9+/_=-])[A-Za-z0-9+/_-]{8,}={0,2}(?![A-Za-z0-9+/_=-])")
 _UNICODE_ESCAPE = re.compile(r"\\(?:u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|x([0-9a-fA-F]{2}))")
 _HEX_HINT = re.compile(r"\b(?:base16|hexadecimal|hex)\b", re.I)
@@ -80,10 +83,31 @@ def _decode_candidates(value: str) -> list[tuple[str, str]]:
         decoded.append(("unicode_escape", unicode_text))
 
     if _HEX_HINT.search(value):
+        separated = list(_HEX_SEPARATED.finditer(value))
+        decoded_spans: list[tuple[int, int]] = []
+        if separated:
+            logger.info("[CANON] transform=base16 detected=true")
+        for match in separated:
+            groups = re.split(r"[ \t\r\n]+", match.group(0))
+            if any(len(group) % 2 for group in groups):
+                logger.info("[CANON] transform=base16 decode_success=false reason=odd_group_length")
+                continue
+            token = "".join(groups)
+            if len(token) // 2 > MAX_DECODED_BYTES:
+                raise OverflowError("decoded_size_limit")
+            try:
+                text = _printable_text(bytes.fromhex(token))
+            except ValueError:
+                text = None
+            if text is not None:
+                decoded.append(("base16", text))
+                decoded_spans.append((match.start(), match.end()))
         tokens = list(_HEX_TOKEN.finditer(value))
-        if tokens:
+        if tokens and not separated:
             logger.info("[CANON] transform=base16 detected=true")
         for match in tokens:
+            if any(match.start() < end and match.end() > start for start, end in decoded_spans):
+                continue
             token = match.group(0)
             if not re.fullmatch(r"[0-9A-Fa-f]+", token):
                 if any(char.isdigit() for char in token):

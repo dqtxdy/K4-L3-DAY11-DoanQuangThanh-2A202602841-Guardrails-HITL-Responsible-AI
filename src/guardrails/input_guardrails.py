@@ -39,15 +39,15 @@ _INJECTION_RULES = {
 }
 
 _SECRET_TARGET = re.compile(
-    r"\b(?:api key|key|token|secret|credential|password|passwd|"
+    r"\b(?:api key|key|token|secret|credentials?|password|passwd|"
     r"mat khau|thong tin xac thuc|khoa bi mat|khoa api|"
     r"bien.{0,24}cau hinh(?:.{0,16}he thong)?|cau hinh he thong|"
-    r"system configuration|configuration value|system config|"
+    r"system configuration|configuration value|system config|internal config(?:uration)?|internal note|"
     r"gia tri.{0,40}(?:sk\s*-|token|khoa))\b",
     re.I,
 )
 _SECRET_EXTRACTION_ACTION = re.compile(
-    r"\b(?:reveal|expose|print|output|show|extract|enumerate|list|serialize|"
+    r"\b(?:query|execute|follow|interpret|use|retrieve|reveal|expose|print|output|show|extract|enumerate|list|serialize|"
     r"split|return|read|access|get|fetch|dump|encode|translate|format|"
     r"lay|liet ke|in ra|hien thi|trich xuat|doc|truy cap|xuat|tra ve|"
     r"cung cap|cho biet|tach|chia|ma hoa|chuyen doi)\b",
@@ -125,14 +125,17 @@ def _candidate_reason(text: str) -> str | None:
             return reason
     return None
 
-def injection_reason(user_input: str) -> str | None:
+def injection_reason(user_input: str, *, inspection=None) -> str | None:
     try:
-        inspection = inspect_encoded_input(user_input)
-        labeled_texts = [("raw", user_input)] + [
-            (f"canonical_{index}", candidate.text)
+        inspection = inspection or inspect_encoded_input(user_input)
+        labeled_texts = [("raw", user_input, None)] + [
+            (f"canonical_{index}", candidate.text, candidate.transform)
             for index, candidate in enumerate(inspection.candidates, 1)
         ]
-        normalized_texts = [(label, canonicalize(text)) for label, text in labeled_texts]
+        normalized_texts = [
+            (label, re.sub(r"[_]+", " ", canonicalize(text)), transform)
+            for label, text, transform in labeled_texts
+        ]
     except Exception:
         logger.warning("[SECURITY] canonical_input_verdict=BLOCK category=CANONICALIZATION_ERROR")
         return "normalization_error"
@@ -140,8 +143,13 @@ def injection_reason(user_input: str) -> str | None:
         logger.warning("[SECURITY] canonical_input_verdict=BLOCK category=CANONICALIZATION_LIMIT")
         return "canonicalization_limit_exceeded"
     first_reason = None
-    for label, text in normalized_texts:
+    for label, text, transform in normalized_texts:
         reason = _candidate_reason(text)
+        if transform in {"base16", "base64", "url_percent", "unicode_escape"}:
+            if reason == "secret_exfiltration":
+                reason = "encoded_exfiltration"
+            elif reason:
+                reason = "encoded_instruction"
         verdict = "BLOCK" if reason else "ALLOW"
         logger.info("[SECURITY] candidate=%s verdict=%s", label, verdict)
         if reason:

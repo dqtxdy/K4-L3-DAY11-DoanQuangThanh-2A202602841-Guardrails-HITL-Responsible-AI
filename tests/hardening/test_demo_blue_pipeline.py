@@ -63,7 +63,7 @@ def test_encoded_secret_exfiltration_blocks_before_blue(monkeypatch, caplog):
     assert result["decision"] == "BLOCK"
     assert result["generation_status"] == "NOT_RUN"
     assert calls["count"] == 0
-    assert "category=SECRET_EXFILTRATION" in caplog.text
+    assert "category=ENCODED_EXFILTRATION" in caplog.text
     assert "[BLUE] generation_status=NOT_RUN" in caplog.text
     assert encoded not in caplog.text
 

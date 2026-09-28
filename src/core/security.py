@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import base64
 import re
 import unicodedata
 from pathlib import Path
@@ -47,7 +48,16 @@ def sensitive_matches(text: str) -> list[str]:
         needle = canonicalize(value)
         compact = re.sub(r"[^a-z0-9]", "", needle)
         compact_text = re.sub(r"[^a-z0-9]", "", normalized)
-        if needle in normalized or (len(compact) >= 6 and compact in compact_text):
+        encoded_match = False
+        if len(compact) >= 6:
+            try:
+                secret_bytes = value.encode("utf-8", errors="strict")
+                b64 = base64.b64encode(secret_bytes).decode("ascii")
+                hex_value = secret_bytes.hex()
+                encoded_match = b64 in text or hex_value in text.casefold()
+            except UnicodeEncodeError:
+                pass
+        if needle in normalized or (len(compact) >= 6 and compact in compact_text) or encoded_match:
             category = "api_key" if "sk-" in value.lower() else "database_host" if ".internal" in value.lower() else "password"
             if category not in found:
                 found.append(category)

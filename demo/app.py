@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from core.security import canonicalize, sensitive_matches
 from guardrails.input_guardrails import detect_injection, injection_reason, topic_filter
+from guardrails.canonicalization import inspect_encoded_input
 from guardrails.output_guardrails import content_filter
 from assignment.rate_limiter import RateLimitPlugin
 from core.adk_compat import types
@@ -49,11 +50,17 @@ def run_trace(prompt: str, user="classroom") -> dict:
         trace.append({"stage":"Rate limit", "status":"PASS", "reason":"Request within per-user sliding window"})
         try: normalized = canonicalize(prompt)
         except Exception:
-            normalized = ""; reason = "normalization_error"
-        else: reason = injection_reason(prompt)
+            normalized = ""; reason = "normalization_error"; inspection = None
+        else:
+            inspection = inspect_encoded_input(prompt)
+            reason = injection_reason(prompt, inspection=inspection)
         canon_status = "BLOCK" if reason == "canonicalization_limit_exceeded" else "PASS"
         canon_reason = "Bounded inspection limit exceeded" if canon_status == "BLOCK" else "Unicode normalization and bounded encoded-content inspection"
         trace.append({"stage":"Canonicalization", "status":canon_status, "reason":canon_reason})
+        if inspection is not None and inspection.candidates:
+            transforms = ", ".join(sorted({item.transform.upper() for item in inspection.candidates}))
+            trace.append({"stage":"Encoded Payload", "status":"DETECTED", "reason":transforms})
+            trace.append({"stage":"Decoded Security Scan", "status":"MALICIOUS" if reason else "PASS", "reason":"Sensitive intent found in decoded representation" if reason else "No sensitive intent found in decoded representation"})
         if reason:
             decision, layer, response = "BLOCK", "input_injection", "I cannot process that request. I can help with VinBank banking questions."
             security_category = reason.upper()
