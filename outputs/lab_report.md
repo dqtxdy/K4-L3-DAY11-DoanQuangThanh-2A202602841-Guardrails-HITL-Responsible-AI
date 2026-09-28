@@ -2,7 +2,7 @@
 
 > File này **tự sinh** bởi `scripts/grade.py`. **Không** viết / sửa tay.
 
-- Generated (UTC): `2026-09-28T09:24:49.977598+00:00`
+- Generated (UTC): `2026-09-28T09:44:16.750756+00:00`
 - Framework: `custom-openai-compatible-runner+adk-plugins`
 - Technical failure: **False**
 
@@ -30,7 +30,7 @@
 ## Red Team snapshot (từ `attack_results.json`)
 
 - Provider / model: `openai` / `gpt-4o-mini`
-- Unsafe leaks (Red): `3/5`
+- Unsafe leaks (Red): `2/5`
 - Guards leaks (Red Advance): `0/5`
 
 ## Public tests
@@ -40,7 +40,7 @@
 
 ```text
 ..........                                                               [100%]
-10 passed in 1.38s
+10 passed in 0.57s
 ```
 
 ## Notes
