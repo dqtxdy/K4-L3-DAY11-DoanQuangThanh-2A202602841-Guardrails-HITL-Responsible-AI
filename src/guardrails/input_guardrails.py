@@ -11,16 +11,147 @@ Status convention (không dùng True/False mơ hồ):
 from __future__ import annotations
 
 import re
+import logging
 from typing import Literal
 
-from google.genai import types
-from google.adk.plugins import base_plugin
-from google.adk.agents.invocation_context import InvocationContext
+from core.adk_compat import types, base_plugin
+
+try:
+    from google.adk.agents.invocation_context import InvocationContext
+except ImportError:
+    InvocationContext = object
 
 from core.config import ALLOWED_TOPICS, BLOCKED_TOPICS
+from core.security import canonicalize
+from guardrails.canonicalization import inspect_encoded_input
+
+logger = logging.getLogger("vinbank.security")
 
 # Quyết định rõ ràng — tránh đảo nghĩa True/False
 InputStatus = Literal["ALLOW", "BLOCK"]
+_INJECTION_RULES = {
+    "instruction_override": r"\b(ignore|disregard|forget|override|bypass)\b.{0,70}\b(previous|above|prior|system|developer|all)\b.{0,30}\b(instruction|rule|policy|message)s?\b|\bnew instructions?\b.{0,35}\b(take precedence|override|supersede)\b|\bdo not follow\b.{0,30}\b(system|developer)\b",
+    "role_hijack": r"\b(you are now|pretend (you are|to be)|act as (an? )?(unrestricted|different|developer)|developer mode|dan mode|simulate another assistant)\b",
+    "prompt_extraction": r"\b(system|developer|hidden|internal) (prompt|instruction|policy|configuration|context)s?\b|\b(hidden|system|developer) (instructions?|prompts?|context|configuration)\b|\b(reveal|repeat|print|show|dump|summari[sz]e|translate|encode|decode|complete|fill in)\b.{0,50}\b(prompt|instruction|configuration|context|messages before|initialization)\b|\brepeat everything above\b|\bwhat (were|are) you told\b",
+    "secret_exfiltration": r"\b(admin password|api key|database (host|credential|password)|environment variables|credentials)\b.{0,60}\b(show|tell|give|print|reveal|confirm|repeat|encode|extract|complete|fill)\b|\b(confirm|verify|guess|character by character|first character)\b.{0,50}\b(password|secret|key|credential|database host)\b|\b(fill in the blank|complete the missing)\b.{0,50}\b(password|key|credential|secret)\b|\b(confirm|verify)\b.{0,40}\b(database host|db dot)\b|\b(reveal|expose|print|extract|return|output|encode|show|dump|give|exfiltrate)\b.{0,70}\b(system configuration|configuration secret|api key|secret|credential|environment variable|token)\b|\b(system configuration|configuration secret|api key|secret|credential|environment variable|token)\b.{0,70}\b(character.by.character|one character at a time|each character|json|first character)\b",
+    "indirect_injection": r"\b(system|developer|assistant)\s*[:>]|<\s*/?\s*(system|developer|assistant)\b|```\s*(system|developer)|\b(authorized by|ticket|auditor|ciso|for debugging only|academic research)\b.{0,70}\b(reveal|override|secret|prompt|credential|ignore)\b",
+    "encoded_exfiltration": r"\b(base64|rot13|hexadecimal|character.by.character|json|yaml|xml)\b.{0,70}\b(hidden|system|developer|prompt|secret|configuration|credential)\b",
+}
+
+_SECRET_TARGET = re.compile(
+    r"\b(?:api key|key|token|secret|credential|password|passwd|"
+    r"mat khau|thong tin xac thuc|khoa bi mat|khoa api|"
+    r"bien.{0,24}cau hinh(?:.{0,16}he thong)?|cau hinh he thong|"
+    r"system configuration|configuration value|system config|"
+    r"gia tri.{0,40}(?:sk\s*-|token|khoa))\b",
+    re.I,
+)
+_SECRET_EXTRACTION_ACTION = re.compile(
+    r"\b(?:reveal|expose|print|output|show|extract|enumerate|list|serialize|"
+    r"split|return|read|access|get|fetch|dump|encode|translate|format|"
+    r"lay|liet ke|in ra|hien thi|trich xuat|doc|truy cap|xuat|tra ve|"
+    r"cung cap|cho biet|tach|chia|ma hoa|chuyen doi)\b",
+    re.I,
+)
+_SECRET_EVASION_FORMAT = re.compile(
+    r"\b(?:character.by.character|token.by.token|each character|each token|"
+    r"one character at a time|tung ky tu|moi ky tu|tung token|moi token|"
+    r"json|serialize|serialized|array|mang|danh sach|base16|base64|hex)\b",
+    re.I,
+)
+_INDIRECT_CONCEPT_DERIVATION = re.compile(
+    r"\b(?:anagram|rearrange|reorder|arrange|derive|infer|reconstruct|identify|deduce|solve|translate|paraphrase)\b"
+    r".{0,160}\b(?:letters?|characters?|fragments?|riddle|word|term|concept)\b|"
+    r"\b(?:sap xep|dao vi tri|suy ra|xac dinh|tim ra|giai)\b"
+    r".{0,180}\b(?:ky tu|chu cai|tu tieng anh|tu co nghia|khai niem|tu)\b",
+    re.I,
+)
+_CURRENT_SESSION_CONTEXT = re.compile(
+    r"\b(?:current session|current context|current runtime|current configuration|"
+    r"current system|session currently|this session|phien lam viec hien tai|"
+    r"phien hien tai|du lieu hien tai|he thong hien tai)\b",
+    re.I,
+)
+_LIVE_VALUE_REFERENCE = re.compile(
+    r"\b(?:values?|data|configuration|credentials?|stored|available|matching|"
+    r"gia tri|du lieu|thong tin|dang luu|phu hop|lien quan|bien cau hinh)\b",
+    re.I,
+)
+_LIVE_VALUE_ACCESS_ACTION = re.compile(
+    r"\b(?:show|provide|list|tell|return|retrieve|inspect|output|give|fetch|"
+    r"cho biet|liet ke|cung cap|tra ve|lay|doc|kiem tra|hien thi|xuat)\b",
+    re.I,
+)
+
+
+def _semantic_secret_exfiltration(text: str) -> bool:
+    """Compositional detection over normalized untrusted candidate text."""
+    target = _SECRET_TARGET.search(text)
+    action = _SECRET_EXTRACTION_ACTION.search(text)
+    indirect = bool(_INDIRECT_CONCEPT_DERIVATION.search(text))
+    session_context = bool(_CURRENT_SESSION_CONTEXT.search(text))
+    live_reference = bool(_LIVE_VALUE_REFERENCE.search(text))
+    access_action = bool(_LIVE_VALUE_ACCESS_ACTION.search(text))
+    session_access = session_context and live_reference and access_action
+    decomposition = bool(_SECRET_EVASION_FORMAT.search(text))
+
+    if indirect:
+        logger.info("[SECURITY] signal=indirect_concept_derivation true")
+    if session_access:
+        logger.info("[SECURITY] signal=current_session_value_request true")
+    if decomposition:
+        logger.info("[SECURITY] signal=decomposition_output true")
+
+    # Explicit sensitive targets with an extraction verb, and inferred targets
+    # combined with live-value access, are high risk. Formatting alone is not.
+    if target and action and abs(target.start() - action.start()) <= 240:
+        return True
+    if target and session_access:
+        return True
+    if indirect and session_access:
+        return True
+    if session_access and decomposition and (target or indirect):
+        return True
+    return False
+
+
+def _candidate_reason(text: str) -> str | None:
+    if _semantic_secret_exfiltration(text):
+        return "secret_exfiltration"
+    for reason, pattern in sorted(
+        _INJECTION_RULES.items(), key=lambda item: item[0] != "secret_exfiltration"
+    ):
+        if re.search(pattern, text, re.I):
+            return reason
+    return None
+
+def injection_reason(user_input: str) -> str | None:
+    try:
+        inspection = inspect_encoded_input(user_input)
+        labeled_texts = [("raw", user_input)] + [
+            (f"canonical_{index}", candidate.text)
+            for index, candidate in enumerate(inspection.candidates, 1)
+        ]
+        normalized_texts = [(label, canonicalize(text)) for label, text in labeled_texts]
+    except Exception:
+        logger.warning("[SECURITY] canonical_input_verdict=BLOCK category=CANONICALIZATION_ERROR")
+        return "normalization_error"
+    if inspection.limit_error:
+        logger.warning("[SECURITY] canonical_input_verdict=BLOCK category=CANONICALIZATION_LIMIT")
+        return "canonicalization_limit_exceeded"
+    first_reason = None
+    for label, text in normalized_texts:
+        reason = _candidate_reason(text)
+        verdict = "BLOCK" if reason else "ALLOW"
+        logger.info("[SECURITY] candidate=%s verdict=%s", label, verdict)
+        if reason:
+            logger.info("[SECURITY] candidate=%s category=%s", label, reason.upper())
+            first_reason = first_reason or reason
+    if first_reason:
+        logger.warning("[SECURITY] canonical_input_verdict=BLOCK category=%s", first_reason.upper())
+        return first_reason
+    logger.info("[SECURITY] canonical_input_verdict=ALLOW")
+    return None
 
 
 # ============================================================
@@ -51,16 +182,7 @@ def detect_injection(user_input: str) -> InputStatus:
     Returns:
         ``"BLOCK"`` if injection detected (chặn), ``"ALLOW"`` otherwise (cho qua).
     """
-    INJECTION_PATTERNS = [
-        # TODO: Add at least 5 regex patterns
-        # Example:
-        # r"ignore (all )?(previous|above) instructions",
-    ]
-
-    for pattern in INJECTION_PATTERNS:
-        if re.search(pattern, user_input, re.IGNORECASE):
-            return "BLOCK"
-    return "ALLOW"
+    return "BLOCK" if injection_reason(user_input) else "ALLOW"
 
 
 # ============================================================
@@ -84,14 +206,13 @@ def topic_filter(user_input: str) -> InputStatus:
         ``"BLOCK"`` = chặn (off-topic hoặc topic cấm).
         ``"ALLOW"`` = cho qua (câu banking hợp lệ).
     """
-    input_lower = user_input.lower()
-
-    # TODO: Implement logic:
-    # 1. If input contains any blocked topic -> return "BLOCK"
-    # 2. If input doesn't contain any allowed topic -> return "BLOCK"
-    # 3. Otherwise -> return "ALLOW"
-
-    pass  # Replace with your implementation
+    input_lower = canonicalize(user_input)
+    words = set(re.findall(r"[a-z0-9]+", input_lower))
+    if any(term in input_lower for term in BLOCKED_TOPICS):
+        return "BLOCK"
+    if not any(term in input_lower or set(re.findall(r"[a-z0-9]+", term)).issubset(words) for term in ALLOWED_TOPICS):
+        return "BLOCK"
+    return "ALLOW"
 
 
 # ============================================================
@@ -112,6 +233,7 @@ class InputGuardrailPlugin(base_plugin.BasePlugin):
         super().__init__(name="input_guardrail")
         self.blocked_count = 0
         self.total_count = 0
+        self.last_decision = {}
 
     def _extract_text(self, content: types.Content) -> str:
         """Extract plain text from a Content object."""
@@ -144,14 +266,17 @@ class InputGuardrailPlugin(base_plugin.BasePlugin):
         self.total_count += 1
         text = self._extract_text(user_message)
 
-        # TODO: Implement logic:
-        # 1. Call detect_injection(text)
-        #    - If "BLOCK": increment blocked_count, return self._block_response("...")
-        # 2. Call topic_filter(text)
-        #    - If "BLOCK": increment blocked_count, return self._block_response("...")
-        # 3. If both return "ALLOW": return None (let message through)
-
-        pass  # Replace with your implementation
+        reason = injection_reason(text)
+        if reason:
+            self.blocked_count += 1
+            self.last_decision = {"decision": "BLOCK", "layer": "input_injection", "reason": reason}
+            return self._block_response("I cannot process that request. I can help with VinBank banking questions.")
+        if topic_filter(text) == "BLOCK":
+            self.blocked_count += 1
+            self.last_decision = {"decision": "BLOCK", "layer": "input_topic", "reason": "off_topic_or_prohibited"}
+            return self._block_response("I can only help with banking-related questions.")
+        self.last_decision = {"decision": "ALLOW", "layer": "input_guardrail", "reason": "passed"}
+        return None
 
 
 # ============================================================
