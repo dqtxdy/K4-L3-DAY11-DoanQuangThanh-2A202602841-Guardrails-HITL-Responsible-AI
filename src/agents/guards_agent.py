@@ -11,11 +11,16 @@ from __future__ import annotations
 
 import re
 
-from google.adk.agents import llm_agent
-from google.adk import runners
-from google.adk.plugins import base_plugin
-from google.adk.agents.invocation_context import InvocationContext
-from google.genai import types
+try:
+    from google.adk.agents import llm_agent
+    from google.adk import runners
+    from google.adk.plugins import base_plugin
+    from google.adk.agents.invocation_context import InvocationContext
+    from google.genai import types
+except ImportError:
+    from core.adk_compat import base_plugin, types
+    llm_agent = runners = None
+    InvocationContext = object
 
 from agents.security_boundary import (
     ActionDecision,

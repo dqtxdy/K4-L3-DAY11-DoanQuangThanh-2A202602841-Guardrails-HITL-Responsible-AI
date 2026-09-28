@@ -134,8 +134,6 @@ async def part4_attacks():
 
 
 async def main(parts=None):
-    setup_api_key()
-
     if parts is None:
         parts = [2, 3, 4]  # Core: CP2 → CP3 → CP4
 
@@ -145,6 +143,7 @@ async def main(parts=None):
         elif part == 3:
             await part3_assignment_suite()
         elif part == 4:
+            setup_api_key()
             await part4_attacks()
         else:
             print(f"Unknown part: {part}. Dùng --part 2, 3, hoặc 4.")
