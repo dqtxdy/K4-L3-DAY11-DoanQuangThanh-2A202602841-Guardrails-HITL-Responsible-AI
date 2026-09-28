@@ -1,13 +1,13 @@
 # Hướng dẫn nộp bài & checklist (SUBMISSION)
 
-> ⚠️ **Bài CÁ NHÂN:** mỗi MSSV nộp **một** repo / một link lên LMS.  
-> Điểm: [`RUBRIC.md`](RUBRIC.md) · Quy định: [`RULES.md`](RULES.md) · Cách làm: [`CHECKPOINTS.md`](CHECKPOINTS.md) (Checkpoint 1 → 5).  
-> Artifact chấm = file trong `outputs/` — **không** viết `report/*.md` tay.  
-> Checkpoint 5: `scripts/grade.py` **tự sinh** `outputs/grade_report.json` + `outputs/lab_report.md`.  
-> Protected data (red-team phải leak): `data/protected/vinbank_secrets.json`.  
-> **Blue:** OpenRouter `liquid/lfm-2.5-2.6b` (cố định).  
-> **Red / Red Advance:** `gpt-4o-mini` (OpenAI) **hoặc** `gemini-3.5-flash` (Gemini).  
-> Bonus B1 chỉ được claim khi Red leak được trong replay bằng model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash`. B2 cần Red Advance leak thật. Không suy ra bonus từ model mặc định.
+> ⚠️ **Bài CÁ NHÂN:** mỗi MSSV nộp **một** repo / một link lên LMS.
+> Điểm: [`RUBRIC.md`](RUBRIC.md) · Quy định: [`RULES.md`](RULES.md) · Cách làm: [`CHECKPOINTS.md`](CHECKPOINTS.md) (Checkpoint 1 → 5).
+> Artifact chấm = file trong `outputs/` — **không** viết `report/*.md` tay.
+> Checkpoint 5: `scripts/grade.py` **tự sinh** `outputs/grade_report.json` + `outputs/lab_report.md`.
+> Protected data (red-team phải leak): `data/protected/vinbank_secrets.json`.
+> **Blue:** OpenRouter `liquid/lfm-2.5-2.6b` (cố định).
+> **Red / Red Advance:** `gpt-4o-mini` (OpenAI) **hoặc** `gemini-3.5-flash` (Gemini).
+> Điểm cộng: chọn **một** — **Red** tối đa +5 **hoặc** **Red Advance** tối đa +10 — xem [`RUBRIC.md`](RUBRIC.md).
 
 ---
 
@@ -15,12 +15,12 @@
 
 Theo **Quy ước chung Khóa 4** — đặt tên repo bài nộp của học viên:
 
-- **Cấu trúc:**  
-  `K4-L3-DAYxx-HoVaTen-MSSV-TenBai`  
+- **Cấu trúc:**
+  `K4-L3-DAYxx-HoVaTen-MSSV-TenBai`
   *(Không dấu, không khoảng trắng, ngăn cách bằng `-`. Ngày học hai chữ số: `DAY11`.)*
-- **Day 11 (L3) — mẫu cụ thể:**  
+- **Day 11 (L3) — mẫu cụ thể:**
   `K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI`
-- **Ví dụ (thống nhất format MSSV):**  
+- **Ví dụ (thống nhất format MSSV):**
   `K4-L3-DAY11-NguyenVanA-2A2026xxxxx-Guardrails-HITL-Responsible-AI`
 
 **Cách làm gợi ý**
@@ -29,7 +29,7 @@ Theo **Quy ước chung Khóa 4** — đặt tên repo bài nộp của học vi
 2. **Đổi tên repo** trên GitHub cho đúng cấu trúc trên (Settings → Repository name), hoặc tạo repo mới với tên chuẩn rồi đẩy code lên.
 3. Nộp **link repo** (đã đổi tên) lên cổng LMS / CodeLabs đúng hạn.
 
-Ví dụ link nộp:  
+Ví dụ link nộp:
 `https://github.com/<user-cua-ban>/K4-L3-DAY11-NguyenVanA-2A2026xxxxx-Guardrails-HITL-Responsible-AI`
 
 ---
@@ -82,7 +82,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 
 **Bonus lab** (grader replay — không tự cấp từ JSON; chọn một trong hai):
 
-- **B1** — leak **Red** bằng model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash`: tối đa **+5**
+- **B1** — leak **Red**: tối đa **+5**
 - **B2** — leak **Red Advance**: tối đa **+10**
 - **Không** cộng B1 + B2
 
@@ -94,7 +94,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 
 ```json
 {
-  "framework": "custom-openai-compatible-runner+adk-plugins",
+  "framework": "google-adk",
   "safe_queries": [
     {"input": "...", "blocked": false, "layer": null, "response_preview": "..."}
   ],
@@ -114,7 +114,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 }
 ```
 
-- `safe_queries` ≥ 5 · `attack_queries` ≥ 7 · `edge_cases` ≥ 3  
+- `safe_queries` ≥ 5 · `attack_queries` ≥ 7 · `edge_cases` ≥ 3
 - Mỗi query: bắt buộc `input`, `blocked`
 
 ### `outputs/attack_results.json`
@@ -137,7 +137,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 - [ ] Có `outputs/results.json` và **validate** được với `schemas/results.schema.json`
 - [ ] Có `outputs/attack_results.json` (unsafe + guards)
 - [ ] **Không** commit `.env` / API key
-- [ ] `outputs/` không chứa placeholder tự tạo tay (file do canonical `cd src && python main.py --part 5|1` sinh ra)
+- [ ] `outputs/` không chứa placeholder tự tạo tay (file do `python src/main.py --part 3|4` sinh ra)
 - [ ] Đã chạy tự kiểm:
 
 **Windows (PowerShell):**

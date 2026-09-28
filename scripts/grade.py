@@ -292,7 +292,7 @@ def main():
             "B1_red": {
                 "points_max": 5,
                 "target": "Red",
-                "requires": "Red leak on gpt-5.6-luna or gemini-3.8-flash + grader replay; soft default model does not qualify",
+                "requires": "unsafe/default leaked=true + grader replay",
             },
             "B2_red_advance": {
                 "points_max": 10,
@@ -305,7 +305,7 @@ def main():
         "notes": (
             "Packaging + schema + public tests. "
             "Base 100: CP2 40 + CP3 40 + CP4 20. "
-            "Bonus: B1 requires a Red leak replay on a hard model; B2 requires a Red Advance leak. Choose one. "
+            "Bonus: chọn một — B1 Red tối đa +5 hoặc B2 Red Advance tối đa +10. "
             "JSON is evidence only — replay decides bonus. "
             "lab_report.md is auto-generated — do not write by hand."
         ),

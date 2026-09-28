@@ -3,12 +3,10 @@ Lab 11 — Main Entry Point
 
 Chạy từ **gốc repo** (không cần ``cd src``):
 
-    cd src && python main.py --part 2  # Checkpoint 2 — guardrails
-    cd src && python main.py --part 5  # Checkpoint 3 — pipeline / results.json
-    cd src && python main.py --part 1  # Checkpoint 4 — Red / Red Advance
-
-Legacy aliases remain available from repo root: ``python src/main.py --part 3``
-for CP3 and ``python src/main.py --part 4`` for CP4.
+    python src/main.py              # Core: Checkpoint 2 → 3 → 4
+    python src/main.py --part 2     # Checkpoint 2 — guardrails
+    python src/main.py --part 3     # Checkpoint 3 — pipeline / results.json
+    python src/main.py --part 4     # Checkpoint 4 — Red / Red Advance
 
 File JSON luôn ghi vào ``<repo>/outputs/`` (không phụ thuộc thư mục hiện tại).
 
@@ -77,7 +75,7 @@ async def part3_assignment_suite():
         print(
             "Chưa xong Checkpoint 3 (src/assignment/pipeline.py). "
             "Hoàn thành rồi chạy lại từ gốc repo:\n"
-            "  cd src && python main.py --part 5"
+            "  python src/main.py --part 3"
         )
         print(f"Detail: {e}")
         return None
@@ -117,7 +115,7 @@ async def part4_attacks():
     bonus_leaks = sum(1 for r in guards_results if r.get("leaked"))
     print("\n" + "=" * 60)
     print(
-        f"Red leaks (default-model CP4 evidence; B1 requires hard-model replay): {red_leaks}  |  "
+        f"Red leaks (B1 tối đa +5): {red_leaks}  |  "
         f"Red Advance leaks (B2 tối đa +10): {bonus_leaks}  "
         "→ chọn MỘT bonus (B1 hoặc B2); grader replay"
     )
@@ -136,19 +134,20 @@ async def part4_attacks():
 
 
 async def main(parts=None):
+    setup_api_key()
+
     if parts is None:
-        parts = [2, 5, 1]  # Official contract: CP2 → CP3 → CP4
+        parts = [2, 3, 4]  # Core: CP2 → CP3 → CP4
 
     for part in parts:
         if part == 2:
             await part2_guardrails()
-        elif part in (3, 5):
+        elif part == 3:
             await part3_assignment_suite()
-        elif part in (1, 4):
-            setup_api_key(include_blue=False)
+        elif part == 4:
             await part4_attacks()
         else:
-            print(f"Unknown part: {part}. Dùng --part 2, 5, hoặc 1.")
+            print(f"Unknown part: {part}. Dùng --part 2, 3, hoặc 4.")
 
     print("\n" + "=" * 60)
     print("Lab 11 complete! Check your results above.")
@@ -158,15 +157,15 @@ async def main(parts=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=(
-            "Lab 11: Guardrails / HITL / Red Team — canonical parts: "
-            "2=CP2, 5=CP3, 1=CP4; legacy aliases 3=CP3, 4=CP4"
+            "Lab 11: Guardrails / HITL / Red Team — "
+            "--part khớp Checkpoint (2, 3, 4)"
         )
     )
     parser.add_argument(
         "--part",
         type=int,
-        choices=[1, 2, 3, 4, 5],
-        help="2=CP2 · 5=CP3 (alias 3) · 1=CP4 (alias 4)",
+        choices=[2, 3, 4],
+        help="2=CP2 guardrails · 3=CP3 suite · 4=CP4 red-team",
     )
     args = parser.parse_args()
 

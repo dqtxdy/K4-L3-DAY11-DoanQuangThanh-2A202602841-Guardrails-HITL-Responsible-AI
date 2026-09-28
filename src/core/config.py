@@ -4,15 +4,15 @@ Lab 11 — Configuration, provider selection, API keys.
 Hai tầng model (không trộn):
 
   Blue Team (CP2–CP3, guardrails / pipeline / protected agent)
-    → CỐ ĐỊNH OpenRouter ``liquid/lfm-2.5-2.6b``
-       https://openrouter.ai/liquid/lfm-2.5-2.6b
+    → CỐ ĐỊNH OpenRouter ``liquid/lfm-2.5-2.6b:free``
+       Biến thể :free theo thông báo của ban tổ chức.
     → Cần ``OPENROUTER_API_KEY``
 
   Red Team (CP4)
     → Chọn một provider: OpenAI hoặc Gemini
     → Model mềm (điểm bắt buộc CP4): ``gpt-4o-mini`` / ``gemini-3.5-flash``
     → Model khó (tuỳ chọn): ``gpt-5.6-luna`` / ``gemini-3.8-flash``
-    → B1: Red leak bằng model khó tối đa +5; B2: Red Advance leak tối đa +10
+    → B1: Red leak tối đa +5; B2: Red Advance leak tối đa +10 (chọn một; grader replay)
     → ``RED_TEAM_PROVIDER=openai|gemini`` (alias: ``LLM_PROVIDER``)
 """
 from __future__ import annotations
@@ -256,12 +256,11 @@ def setup_api_key(*, include_blue: bool = True):
         print(f"Red / Red Advance  — openai:{model}")
 
     print(
-        "B1 requires a Red leak replay on the configured hard model; B2 requires a Red Advance leak. Choose one bonus."
+        "B1 requires a Red leak + grader replay; B2 requires a Red Advance leak + grader replay. Choose one bonus."
     )
     if is_harder_model():
         print(
-            f"Model khó ({model}) — dùng cho B1 replay; không đổi tên agent. "
-            f"(Gợi ý: {HARD_OPENAI_MODEL} / {HARD_GEMINI_MODEL})"
+            f"Đang dùng model khó tùy chọn ({model}); model khó không bắt buộc cho B1/B2."
         )
 
 

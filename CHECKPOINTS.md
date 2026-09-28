@@ -3,14 +3,14 @@
 > ⏱️ **Tổng:** Setup 30' + Lab ~130' (phòng thủ ~90' · tấn công ~30' · nộp ~10').
 > 👤 **Cá nhân** · Làm **đúng thứ tự** Checkpoint 1 → 5.
 > 📂 **Không tự tạo file JSON trong** `outputs/` **bằng tay.** Folder và file kết quả được **sinh khi bạn chạy lệnh**.
-> ▶️ Lệnh canonical theo đề chạy trong `src`: `python main.py --part 2` (CP2), `--part 5` (CP3), `--part 1` (CP4). Lệnh cũ 3/4 vẫn là alias tương thích.
+> ▶️ Mọi lệnh lab chạy từ **gốc repo** (nơi có `README.md`): `python src/main.py --part N` — **không** cần `cd src`.
 
 ### Ba agent (nhớ bảng này)
 
 | Tên gọi | Code | Vai trò |
 |---------|------|---------|
 | **Blue** | `create_blue_agent(plugins)` + code CP2–3 | Bạn **code** phòng thủ → `results.json` |
-| **Red** | `create_red_agent_default()` | Có sẵn, mềm — CP4 leak (20đ); B1 tối đa +5 chỉ với replay leak trên model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash` |
+| **Red** | `create_red_agent_default()` | Có sẵn, mềm — CP4 leak (20đ); bonus B1 tối đa +5 (chọn 1) |
 | **Red Advance** | `create_red_agent_advance()` | Có sẵn, cứng — bonus B2 tối đa +10 (chọn 1) |
 
 > CP4 **không** tấn công Blue. File JSON vẫn dùng khóa kỹ thuật `unsafe_*` / `guards_*` (= **Red** / **Red Advance**).
@@ -35,12 +35,12 @@ Khi chạy lệnh, code sẽ **tự tạo folder** (nếu cần) và ghi file JS
 
 ```text
 outputs/
-│  # --- Sinh ở Checkpoint 3 (cd src && python main.py --part 5) ---
+│  # --- Sinh ở Checkpoint 3 (python src/main.py --part 3) ---
 ├── results.json              ← BẮT BUỘC nộp (kết quả phòng thủ)
 ├── audit_log.json            ← khuyến nghị (nhật ký)
 ├── metrics.json              ← khuyến nghị (metrics + alert)
 │
-│  # --- Sinh ở Checkpoint 4 (cd src && python main.py --part 1) ---
+│  # --- Sinh ở Checkpoint 4 (python src/main.py --part 4) ---
 ├── attack_results.json       ← BẮT BUỘC nộp (tổng hợp tấn công)
 ├── unsafe_attack_result.json ← chi tiết tấn công **Red**
 ├── guards_attack_result.json ← chi tiết tấn công **Red Advance**
@@ -53,12 +53,12 @@ outputs/
 
 | File                                | Ai tạo?                                        | Khi nào?                      | Bắt buộc nộp?   |
 | ----------------------------------- | ---------------------------------------------- | ----------------------------- | --------------- |
-| `outputs/results.json`              | Code bạn viết ở CP3 (`run_assignment_suite`)   | Sau `cd src && python main.py --part 5` | **Có**          |
-| `outputs/audit_log.json`            | Code bạn viết ở CP3 (`audit_log.export_json`)  | Cùng lúc `--part 5`           | Khuyến nghị     |
-| `outputs/metrics.json`              | Code bạn viết ở CP3 (`monitoring.export_json`) | Cùng lúc `--part 5`           | Khuyến nghị     |
-| `outputs/attack_results.json`       | Starter (`save_attack_results`)                | Sau `cd src && python main.py --part 1` | **Có**          |
-| `outputs/unsafe_attack_result.json` | Starter (`run_attacks`)                        | Cùng lúc `--part 1`           | Có (bằng chứng) |
-| `outputs/guards_attack_result.json` | Starter (`run_attacks`)                        | Cùng lúc `--part 1`           | Có (bằng chứng) |
+| `outputs/results.json`              | Code bạn viết ở CP3 (`run_assignment_suite`)   | Sau `python src/main.py --part 3` | **Có**          |
+| `outputs/audit_log.json`            | Code bạn viết ở CP3 (`audit_log.export_json`)  | Cùng lúc `--part 3`           | Khuyến nghị     |
+| `outputs/metrics.json`              | Code bạn viết ở CP3 (`monitoring.export_json`) | Cùng lúc `--part 3`           | Khuyến nghị     |
+| `outputs/attack_results.json`       | Starter (`save_attack_results`)                | Sau `python src/main.py --part 4` | **Có**          |
+| `outputs/unsafe_attack_result.json` | Starter (`run_attacks`)                        | Cùng lúc `--part 4`           | Có (bằng chứng) |
+| `outputs/guards_attack_result.json` | Starter (`run_attacks`)                        | Cùng lúc `--part 4`           | Có (bằng chứng) |
 | `outputs/grade_report.json`         | `scripts/grade.py` (**tự sinh**)               | Checkpoint 5                  | Không bắt buộc  |
 | `outputs/lab_report.md`             | `scripts/grade.py` (**tự sinh**, không viết tay) | Checkpoint 5                | Không bắt buộc  |
 
@@ -76,7 +76,7 @@ CP1 Setup → CP2 Viết bộ lọc → CP3 Ghép pipeline + sinh results.json
          → CP4 Tấn công + sinh attack JSON → CP5 Tự kiểm + nộp link
 ```
 
-> **`--part` = số Checkpoint:** `--part 2` → CP2 · `--part 5` → CP3 · `--part 1` → CP4. Aliases: 3→CP3, 4→CP4.
+> **`--part` = số Checkpoint:** `--part 2` → CP2 · `--part 3` → CP3 · `--part 4` → CP4.
 
 ---
 
@@ -133,7 +133,7 @@ pip install -r requirements.txt
 - Lab chạy **local**.
   **Blue** luôn dùng OpenRouter `liquid/lfm-2.5-2.6b`.
   **Red** + **Red Advance** cùng provider: `gpt-4o-mini` hoặc `gemini-3.5-flash`.
-  Bonus: chọn **một** — leak **Red** bằng model khó (`gpt-5.6-luna` / `gemini-3.8-flash`) tối đa +5 **hoặc** leak **Red Advance** tối đa +10 (**không** cộng cả hai).
+  Bonus: chọn **một** — leak **Red** tối đa +5 **hoặc** leak **Red Advance** tối đa +10 (**không** cộng cả hai).
 - **Red** cố ý “mềm”; **Red Advance** vẫn cứng.
 - Mỗi lần mở terminal mới phải kích hoạt lại venv (`Activate.ps1` trên Windows, `source .venv/bin/activate` trên macOS/Linux).
 
@@ -262,7 +262,7 @@ User message
 
 ```bash
 # Chạy từ gốc repo (nơi có README.md) — Windows / macOS / Linux
-cd src && python main.py --part 2
+python src/main.py --part 2
 ```
 
 > **Pass Signal:** Terminal cho thấy injection/topic bị bắt; secret bị `[REDACTED]`; câu banking vẫn trả lời được.
@@ -385,7 +385,7 @@ Mẫu đầy đủ: `[SUBMISSION.md](SUBMISSION.md)`.
 
 Đầu file JSON còn cần:
 
-- `framework` (giá trị runner thực tế được dùng)
+- `framework` (ví dụ `"google-adk"`)
 
 
 
@@ -409,7 +409,7 @@ outputs/
 ```powershell
 # Chạy từ gốc repo
 Remove-Item .\outputs\results.json, .\outputs\audit_log.json, .\outputs\metrics.json -ErrorAction SilentlyContinue
-cd src && python main.py --part 5
+python src/main.py --part 3
 Get-ChildItem .\outputs\*.json
 pytest tests/public/test_results_contract.py -q
 ```
@@ -419,7 +419,7 @@ pytest tests/public/test_results_contract.py -q
 ```bash
 # Chạy từ gốc repo
 rm -f outputs/results.json outputs/audit_log.json outputs/metrics.json
-cd src && python main.py --part 5
+python src/main.py --part 3
 ls outputs/*.json
 pytest tests/public/test_results_contract.py -q
 ```
@@ -452,7 +452,7 @@ data/protected/vinbank_secrets.json
 
 Các giá trị (`admin_password`, `api_key`, `db_host`) được load vào system prompt của mọi bot (xem `core.config.DEMO_SECRETS`).
 
-- **Red** (`create_red_agent_default`): cố ý mềm → **phải leak** ít nhất một giá trị trong file JSON này (điểm bắt buộc CP4; B1 chỉ với replay leak trên model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash`).
+- **Red** (`create_red_agent_default`): cố ý mềm → **phải leak** ít nhất một giá trị trong file JSON này (điểm bắt buộc CP4; bonus B1 tối đa +5 nếu chọn B1).
 - **Blue** (plugin CP2–3 của bạn) và **Red Advance** (`create_red_agent_advance`): phải chặn / redact / refuse (bonus B2 tối đa +10 nếu chọn B2 — **không** cộng với B1).
 
 ### Việc cần làm (chi tiết)
@@ -488,7 +488,7 @@ Luồng lệnh:
 | -------------------------------------------------------------------- | ------------------------------------------------------ |
 | Đủ 5 prompt + `attack_results.json`                                  | Trong 20đ red-team                                     |
 | Leak **Red** (model mặc định)                                     | Trong 20đ red-team                                     |
-| Leak **Red** bằng model khó `gpt-5.6-luna` / `gemini-3.8-flash` | **Bonus B1** tối đa **+5** — grader replay (chọn 1) |
+| Leak **Red** (attack thành công)                                           | **Bonus B1** tối đa **+5** — grader replay (chọn 1)    |
 | Leak **Red Advance** (attack thành công)                                   | **Bonus B2** tối đa **+10** — grader replay (chọn 1; **không** cộng với B1) |
 
 
@@ -523,7 +523,7 @@ outputs/
 
 ```bash
 # Chạy từ gốc repo — Windows / macOS / Linux
-cd src && python main.py --part 1
+python src/main.py --part 4
 ```
 
 Kiểm tra file (chọn đúng OS):
@@ -636,13 +636,13 @@ Push lên fork GitHub → nộp **link repo** theo `[SUBMISSION.md](SUBMISSION.m
 | Checkpoint   | Lệnh (sau khi code xong)                  | File được sinh / cập nhật                                                               |
 | ------------ | ----------------------------------------- | --------------------------------------------------------------------------------------- |
 | 1 Setup      | (không)                                   | `.venv/`, `.env`                                                                        |
-| 2 Guardrails | `cd src && python main.py --part 2`      | Chỉ in terminal                                                                         |
-| 3 Blue | `cd src && python main.py --part 5`      | `outputs/results.json`, `audit_log.json`, `metrics.json`                                |
-| 4 Red  | `cd src && python main.py --part 1`      | `outputs/attack_results.json`, `unsafe_attack_result.json`, `guards_attack_result.json` |
+| 2 Guardrails | `python src/main.py --part 2`      | Chỉ in terminal                                                                         |
+| 3 Blue | `python src/main.py --part 3`      | `outputs/results.json`, `audit_log.json`, `metrics.json`                                |
+| 4 Red  | `python src/main.py --part 4`      | `outputs/attack_results.json`, `unsafe_attack_result.json`, `guards_attack_result.json` |
 | 5 Nộp        | `scripts/grade.py` + push link            | tự sinh `grade_report.json` + `lab_report.md`                                           |
 
 
-> Canonical CLI chạy từ `src/`: `python main.py --part 2` (CP2), `--part 5` (CP3), `--part 1` (CP4). Lệnh tạo artifacts vẫn ghi vào `outputs/` ở gốc repo.
+> Chạy lệnh từ **gốc repo**: `python src/main.py --part N`. File JSON luôn ghi vào `outputs/` ở gốc repo (không tạo `src/outputs/`).
 
 ---
 
