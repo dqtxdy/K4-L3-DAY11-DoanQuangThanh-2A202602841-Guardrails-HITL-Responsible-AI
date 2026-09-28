@@ -9,6 +9,7 @@ Gemini Red Team dùng Google ADK trong agents/*.py — không đi qua file này.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 from typing import Any, Callable
 
 from core.config import (
@@ -19,6 +20,8 @@ from core.config import (
     blue_client_kwargs,
     red_openai_client_kwargs,
 )
+
+logger = logging.getLogger("vinbank.blue")
 
 
 @dataclass
@@ -52,6 +55,7 @@ class OpenAIRunner:
         return OpenAI(**(self.client_kwargs or {}))
 
     async def chat(self, agent: OpenAIAgent, user_message: str) -> str:
+        logger.info("[BLUE] request_reached=true provider=%s model=%s", self.provider, self.model)
         for hook in self.input_hooks:
             blocked = hook(user_message)
             if blocked:
@@ -62,20 +66,41 @@ class OpenAIRunner:
             return block_msg
 
         client = self._client()
-        completion = client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": agent.instruction},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=self.temperature,
-        )
-        text = (completion.choices[0].message.content or "").strip()
+        logger.info("[BLUE] generation_start")
+        try:
+            completion = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": agent.instruction},
+                    {"role": "user", "content": user_message},
+                ],
+                temperature=self.temperature,
+            )
+        except Exception as exc:
+            exc.blue_stage = "provider_call"
+            raise
+        logger.info("[BLUE] provider_return response_type=%s", type(completion).__name__)
+        try:
+            choices = getattr(completion, "choices", None)
+            if choices is None and isinstance(completion, dict):
+                choices = completion.get("choices")
+            if not choices:
+                raise ValueError("provider response contains no choices")
+            first = choices[0]
+            message = first.get("message") if isinstance(first, dict) else getattr(first, "message", None)
+            content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError("provider response contains no usable message content")
+            text = content.strip()
+        except Exception as exc:
+            exc.blue_stage = "response_parsing"
+            raise
 
         for hook in self.output_hooks:
             text = hook(text)
 
         text = await self._run_output_plugins(text)
+        logger.info("[BLUE] output_guardrail_pass content_present=%s", str(bool(text.strip())).lower())
         return text
 
     async def _run_input_plugins(self, user_message: str) -> str | None:

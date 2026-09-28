@@ -134,3 +134,7 @@ pip install -r requirements.txt
 Rồi mở [`CHECKPOINTS.md`](CHECKPOINTS.md) và làm lần lượt Checkpoint 1 → 5.
 
 Nộp theo [`SUBMISSION.md`](SUBMISSION.md) · Quy định: [`RULES.md`](RULES.md).
+
+### Demo Blue guardrails local
+
+Từ thư mục gốc repo, chạy `python demo/app.py` rồi mở `http://127.0.0.1:8765`. UI dùng cùng bộ lọc input/output và rate limiter của pipeline; để gọi Blue model, cấu hình `OPENROUTER_API_KEY` trong `.env` và cài dependencies theo hướng dẫn phía trên.
