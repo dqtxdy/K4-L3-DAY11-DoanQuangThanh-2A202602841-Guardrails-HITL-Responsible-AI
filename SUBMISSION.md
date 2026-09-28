@@ -7,7 +7,7 @@
 > Protected data (red-team phải leak): `data/protected/vinbank_secrets.json`.  
 > **Blue:** OpenRouter `liquid/lfm-2.5-2.6b` (cố định).  
 > **Red / Red Advance:** `gpt-4o-mini` (OpenAI) **hoặc** `gemini-3.5-flash` (Gemini).  
-> Điểm cộng: chọn **một** — **Red** tối đa +5 **hoặc** **Red Advance** tối đa +10 — xem [`RUBRIC.md`](RUBRIC.md).
+> Bonus B1 chỉ được claim khi Red leak được trong replay bằng model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash`. B2 cần Red Advance leak thật. Không suy ra bonus từ model mặc định.
 
 ---
 
@@ -82,7 +82,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 
 **Bonus lab** (grader replay — không tự cấp từ JSON; chọn một trong hai):
 
-- **B1** — leak **Red**: tối đa **+5**
+- **B1** — leak **Red** bằng model khó `gpt-5.6-luna` hoặc `gemini-3.8-flash`: tối đa **+5**
 - **B2** — leak **Red Advance**: tối đa **+10**
 - **Không** cộng B1 + B2
 
@@ -94,7 +94,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 
 ```json
 {
-  "framework": "google-adk",
+  "framework": "custom-openai-compatible-runner+adk-plugins",
   "safe_queries": [
     {"input": "...", "blocked": false, "layer": null, "response_preview": "..."}
   ],
@@ -137,7 +137,7 @@ K4-L3-DAY11-<HoVaTen>-<MSSV>-Guardrails-HITL-Responsible-AI/
 - [ ] Có `outputs/results.json` và **validate** được với `schemas/results.schema.json`
 - [ ] Có `outputs/attack_results.json` (unsafe + guards)
 - [ ] **Không** commit `.env` / API key
-- [ ] `outputs/` không chứa placeholder tự tạo tay (file do `python src/main.py --part 3|4` sinh ra)
+- [ ] `outputs/` không chứa placeholder tự tạo tay (file do canonical `cd src && python main.py --part 5|1` sinh ra)
 - [ ] Đã chạy tự kiểm:
 
 **Windows (PowerShell):**

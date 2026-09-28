@@ -60,4 +60,4 @@ Chi tiết: [`SUBMISSION.md`](SUBMISSION.md).
 
 ## 7. Bonus lab
 
-- Bonus trong [`RUBRIC.md`](RUBRIC.md) là **điểm cộng cho bài lab** (chọn B1 tối đa +5 hoặc B2 tối đa +10), **không** phải điểm giơ tay / phát biểu / pitching trên lớp.
+- Bonus trong [`RUBRIC.md`](RUBRIC.md) là **điểm cộng cho bài lab** (chọn B1 tối đa +5 (chỉ leak Red replay bằng model khó) hoặc B2 tối đa +10), **không** phải điểm giơ tay / phát biểu / pitching trên lớp.
